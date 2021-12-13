@@ -1,7 +1,7 @@
 
 #  Viewpoint Invariant Dense Matching for Visual Geolocalization: PyTorch implementation
 
-<img src="https://github.com/gmberton/geo_warp/blob/main/images_paper/teaser.jpg" width="200">
+<img src="https://github.com/gmberton/geo_warp/blob/main/images_paper/teaser.jpg" width="500">
 
 This is the implementation of the ICCV21 paper:
 
