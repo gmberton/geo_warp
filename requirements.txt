@@ -1,0 +1,9 @@
+faiss_cpu
+kornia
+numpy
+Pillow
+scikit_learn
+Shapely
+torch
+torchvision
+tqdm
