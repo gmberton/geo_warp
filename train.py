@@ -96,7 +96,7 @@ if __name__ == "__main__":
     
     ############### MODEL ###############
     features_extractor = network.FeaturesExtractor(args.arch, args.pooling)
-    global_features_dim = commons.get_output_size(features_extractor)
+    global_features_dim = commons.get_output_dim(features_extractor, args.pooling)
     
     logging.info(f"Resuming from {args.resume_fe}")
     if args.resume_fe != None:
@@ -124,7 +124,8 @@ if __name__ == "__main__":
     
     if args.consistency_w != 0 or args.features_wise_w != 0:
         dataset_qp = dataset_qp.DatasetQP(model, global_features_dim, geoloc_train_dataset, qp_threshold=args.qp_threshold)
-        dataloader_qp = commons.InfiniteDataLoader(dataset_qp, shuffle=True, batch_size=args.batch_size_consistency, 
+        dataloader_qp = commons.InfiniteDataLoader(dataset_qp, shuffle=True,
+                                                   batch_size=max(args.batch_size_consistency, args.batch_size_features_wise), 
                                                    num_workers=args.qp_num_workers, pin_memory=True, drop_last=True)
         data_iter_qp = iter(dataloader_qp)
     ############### DATASETS & DATALOADERS ###############
@@ -151,8 +152,11 @@ if __name__ == "__main__":
             with torch.no_grad():
                 similarity_matrix_1to2, similarity_matrix_2to1 = model("similarity", [warped_img_1, warped_img_2])
                 if args.consistency_w != 0:
-                    similarity_matrix_q2p, similarity_matrix_p2q = model("similarity", [queries, positives])
-                    fl_similarity_matrix_q2p, fl_similarity_matrix_p2q = model("similarity", [hflip(queries), hflip(positives)])
+                    queries_cons = queries[:args.batch_size_consistency]
+                    positives_cons = positives[:args.batch_size_consistency]
+                    similarity_matrix_q2p, similarity_matrix_p2q = model("similarity", [queries_cons, positives_cons])
+                    fl_similarity_matrix_q2p, fl_similarity_matrix_p2q = model("similarity", [hflip(queries_cons), hflip(positives_cons)])
+                    del queries_cons, positives_cons
             for i in range(args.repeat_batch):
                 optim.zero_grad()
                 
@@ -188,13 +192,15 @@ if __name__ == "__main__":
                 
                 # features_wise_loss
                 if args.features_wise_w != 0:
+                    queries_fw = queries[:args.batch_size_features_wise]
+                    positives_fw = positives[:args.batch_size_features_wise]
                     # Add random weights to avoid numerical instability
-                    random_weights = (torch.rand(args.batch_size_features_wise,4)**0.1).cuda()
-                    w_queries, w_positives, _, _ = dataset_warp.compute_warping(model, queries, positives, weights=random_weights)
+                    random_weights = (torch.rand(args.batch_size_features_wise, 4)**0.1).cuda()
+                    w_queries, w_positives, _, _ = dataset_warp.compute_warping(model, queries_fw, positives_fw, weights=random_weights)
                     f_queries = model("features_extractor", [w_queries, "local"])
                     f_positives = model("features_extractor", [w_positives, "local"])
                     features_wise_loss = compute_loss(mse(f_queries, f_positives), args.features_wise_w)
-                    del queries, positives, w_queries, w_positives, f_queries, f_positives
+                    del queries, positives, queries_fw, positives_fw, w_queries, w_positives, f_queries, f_positives
                 else: features_wise_loss = 0
                 
                 if i == 0: epoch_losses = np.concatenate((epoch_losses, np.array([[ss_loss, consistency_loss, features_wise_loss]])))

@@ -73,7 +73,7 @@ class FeaturesExtractor(torch.nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((15, 15))
         self.l2norm = L2Norm()
         if pooling == "netvlad":
-            encoder_dim = commons.get_output_size(self.encoder)
+            encoder_dim = commons.get_output_dim(self.encoder)
             self.pool = NetVLAD(dim=encoder_dim)
         elif pooling == "gem":
             self.pool = nn.Sequential(L2Norm(), GeM())

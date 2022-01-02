@@ -6,10 +6,13 @@ import logging
 import traceback
 
 
-def get_output_size(model):
+def get_output_dim(model, pooling_type="gem"):
     """Dinamically compute the output size of a model.
     """
-    return model(torch.ones([2, 3, 224, 224])).shape[1]
+    output_dim = model(torch.ones([2, 3, 224, 224])).shape[1]
+    if pooling_type == "netvlad":
+        output_dim *= 64  # NetVLAD layer has 64x bigger output dimensions
+    return output_dim
 
 
 class InfiniteDataLoader(torch.utils.data.DataLoader):
