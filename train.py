@@ -6,7 +6,6 @@ import logging
 import argparse
 import numpy as np
 from tqdm import tqdm
-import multiprocessing
 from datetime import datetime
 from torchvision.transforms.functional import hflip
 
@@ -49,21 +48,18 @@ def compute_loss(loss, weight):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--batch_size_ss", type=int, default=16, help="_")
-    parser.add_argument("--batch_size_consistency", type=int, default=16, help="_")
-    parser.add_argument("--batch_size_features_wise", type=int, default=16, help="_")
-    parser.add_argument("--n_epochs", type=int, default=100, help="_")
-    parser.add_argument("--lr", type=float, default=0.0001, help="_")
-    parser.add_argument("--optim", type=str, default="sgd", choices=["adam", "sgd"])
-    parser.add_argument("--repeat_batch", type=int, default=1, help="_")
-    parser.add_argument("--num_reranked_preds", type=int, default=5, help="_")
-    parser.add_argument("--iterations_per_epoch", type=int, default=500, help="_")
-    parser.add_argument("--k", type=int, default=0.6, help="_")
-    parser.add_argument("--kernel_sizes", type=str, default="[7,5,5,5,5,5]",
-                        help="size of kernels in conv layers of HomographyRegression")
-    parser.add_argument("--channels", type=str, default="[225,128,128,64,64,64,64]",
-                        help="num channels in conv layers of HomographyRegression")
-    parser.add_argument("--exp_name", type=str, default="default", help="_")
+    # Training parameters
+    parser.add_argument("--lr", type=float, default=0.0001,
+                        help="learning rate")
+    parser.add_argument("--optim", type=str,  default="sgd",
+                        choices=["adam", "sgd"],
+                        help="optimizer")
+    parser.add_argument("--n_epochs", type=int, default=100,
+                        help="epochs")
+    parser.add_argument("--iterations_per_epoch", type=int, default=500,
+                        help="how many iterations each epoch should last")
+    parser.add_argument("--k", type=int, default=0.6,
+                        help="parameter k, defining the difficulty of ss training data")
     parser.add_argument("--ss_w", type=float, default=1,
                         help="weight of self-supervised loss")
     parser.add_argument("--consistency_w", type=float, default=0.1,
@@ -72,22 +68,55 @@ if __name__ == "__main__":
                         help="weight of features-wise loss")
     parser.add_argument("--qp_threshold", type=float, default=1.2,
                         help="Threshold distance (in features space) for query-positive pairs")
-    parser.add_argument("--resume_fe", type=str, default=None, help="path to resume for Feature Extractor")
-    parser.add_argument("--ss_num_workers", type=int, default=multiprocessing.cpu_count(), help="_")
-    parser.add_argument("--qp_num_workers", type=int, default=4, help="_")
-    parser.add_argument("--arch", type=str, default="r50", choices=["alexnet", "vgg16", "r18", "r50"], help="_")
-    parser.add_argument("--pooling", type=str, default="netvlad", choices=["netvlad", "gem"], help="_")
-    parser.add_argument("--positive_dist_threshold", type=int, default=25, help="Threshold distance for positives (in meters)")
-    # PATHS
-    parser.add_argument("--datasets_folder", type=str, default="../datasets", help="Path with the datasets")
-    parser.add_argument("--dataset_name", type=str, default="pitts30k", help="Name of folder with dataset")
+    parser.add_argument("--batch_size_ss", type=int, default=16,
+                        help="batch size for self-supervised loss")
+    parser.add_argument("--batch_size_consistency", type=int, default=16,
+                        help="batch size for consistency loss")
+    parser.add_argument("--batch_size_features_wise", type=int, default=16,
+                        help="batch size for features-wise loss")
+    parser.add_argument("--ss_num_workers", type=int, default=8,
+                        help="num_workers for self-supervised loss")
+    parser.add_argument("--qp_num_workers", type=int, default=4,
+                        help="num_workers for weakly supervised losses")
+    
+    # Test parameters
+    parser.add_argument("--num_reranked_preds", type=int, default=5,
+                        help="number of predictions to re-rank at test time")
+    
+    # Model parameters
+    parser.add_argument("--arch", type=str, default="resnet50",
+                        choices=["alexnet", "vgg16", "resnet50"],
+                        help="model to use for the encoder")
+    parser.add_argument("--pooling", type=str, default="netvlad",
+                        choices=["netvlad", "gem"],
+                        help="pooling layer used in the baselines")
+    parser.add_argument("--kernel_sizes", nargs='+', default=[7,5,5,5,5,5],
+                        help="size of kernels in conv layers of Homography Regression")
+    parser.add_argument("--channels", nargs='+', default=[225,128,128,64,64,64,64],
+                        help="num channels in conv layers of Homography Regression")
+    
+    # Others
+    parser.add_argument("--exp_name", type=str, default="default",
+                        help="name of generated folders with logs and checkpoints")
+    parser.add_argument("--resume_fe", type=str, default=None,
+                        help="path to resume for Feature Extractor")
+    parser.add_argument("--positive_dist_threshold", type=int, default=25,
+                        help="treshold distance for positives (in meters)")
+    parser.add_argument("--datasets_folder", type=str, default="../datasets",
+                        help="path with the datasets")
+    parser.add_argument("--dataset_name", type=str, default="pitts30k",
+                        help="name of folder with dataset")
+    
     args = parser.parse_args()
     
-    args.kernel_sizes =  [int(k) for k in args.kernel_sizes.replace("[","").replace("]","").split(",")]
-    args.channels =      [int(c) for c in args.channels.replace("[","").replace("]","").split(",")]
-    assert len(args.kernel_sizes) == len(args.channels) - 1, f"len(kernel_sizes) != len(channels)-1:  {args.kernel_sizes} != {args.channels-1}"
+    # Sanity check
+    if len(args.kernel_sizes) != len(args.channels) - 1:
+        raise ValueError("len(kernel_sizes) must be equal to len(channels)-1; "
+                         f"but you set them to {args.kernel_sizes} and {args.channels}")
+    
+    # Setup
     output_folder = f"runs/{args.exp_name}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    commons.setup_logging(output_folder, console="info")
+    commons.setup_logging(output_folder)
     logging.info("python " + " ".join(sys.argv))
     logging.info(f"Arguments: {args}")
     logging.info(f"The outputs are being saved in {output_folder}")
@@ -98,11 +127,13 @@ if __name__ == "__main__":
     features_extractor = network.FeaturesExtractor(args.arch, args.pooling)
     global_features_dim = commons.get_output_dim(features_extractor, args.pooling)
     
-    logging.info(f"Resuming from {args.resume_fe}")
     if args.resume_fe != None:
         state_dict = torch.load(args.resume_fe)
         features_extractor.load_state_dict(state_dict)
         del state_dict
+    else:
+        logging.warning("WARNING: --resume_fe is set to None, meaning that the "
+                        "Feature Extractor is not initialized!")
     
     homography_regression = network.HomographyRegression(kernel_sizes=args.kernel_sizes, channels=args.channels, padding=1)
     model = network.Network(features_extractor, homography_regression).cuda().eval()
@@ -157,54 +188,54 @@ if __name__ == "__main__":
                     similarity_matrix_q2p, similarity_matrix_p2q = model("similarity", [queries_cons, positives_cons])
                     fl_similarity_matrix_q2p, fl_similarity_matrix_p2q = model("similarity", [hflip(queries_cons), hflip(positives_cons)])
                     del queries_cons, positives_cons
-            for i in range(args.repeat_batch):
-                optim.zero_grad()
-                
-                # ss_loss
-                if args.ss_w != 0:
-                    pred_warped_intersection_points_1 = model("regression", similarity_matrix_1to2)
-                    pred_warped_intersection_points_2 = model("regression", similarity_matrix_2to1)
-                    ss_loss = (mse(pred_warped_intersection_points_1[:,:4], warped_intersection_points_1) +
-                               mse(pred_warped_intersection_points_1[:,4:], warped_intersection_points_2) +
-                               mse(pred_warped_intersection_points_2[:,:4], warped_intersection_points_2) +
-                               mse(pred_warped_intersection_points_2[:,4:], warped_intersection_points_1))
-                    ss_loss = compute_loss(ss_loss, args.ss_w)
-                    del pred_warped_intersection_points_1, pred_warped_intersection_points_2
-                else: ss_loss = 0
-                
-                # consistency_loss
-                if args.consistency_w != 0:
-                    pred_intersection_points_q2p = model("regression", similarity_matrix_q2p)
-                    pred_intersection_points_p2q = model("regression", similarity_matrix_p2q)
-                    fl_pred_intersection_points_q2p = model("regression", fl_similarity_matrix_q2p)
-                    fl_pred_intersection_points_p2q = model("regression", fl_similarity_matrix_p2q)
-                    four_predicted_points = [torch.cat((pred_intersection_points_q2p[:,4:], pred_intersection_points_q2p[:,:4]), 1),
-                             pred_intersection_points_p2q,
-                             hor_flip(torch.cat((fl_pred_intersection_points_q2p[:,4:], fl_pred_intersection_points_q2p[:,:4]), 1)),
-                             hor_flip(fl_pred_intersection_points_p2q)]
-                    four_predicted_points_centroids = torch.cat([p[None] for p in four_predicted_points]).mean(0).detach()
-                    consistency_loss = sum([mse(pred, four_predicted_points_centroids) for pred in four_predicted_points])
-                    consistency_loss = compute_loss(consistency_loss, args.consistency_w)
-                    del pred_intersection_points_q2p, pred_intersection_points_p2q, \
-                        fl_pred_intersection_points_q2p, fl_pred_intersection_points_p2q, \
-                        four_predicted_points
-                else: consistency_loss = 0
-                
-                # features_wise_loss
-                if args.features_wise_w != 0:
-                    queries_fw = queries[:args.batch_size_features_wise]
-                    positives_fw = positives[:args.batch_size_features_wise]
-                    # Add random weights to avoid numerical instability
-                    random_weights = (torch.rand(args.batch_size_features_wise, 4)**0.1).cuda()
-                    w_queries, w_positives, _, _ = dataset_warp.compute_warping(model, queries_fw, positives_fw, weights=random_weights)
-                    f_queries = model("features_extractor", [w_queries, "local"])
-                    f_positives = model("features_extractor", [w_positives, "local"])
-                    features_wise_loss = compute_loss(mse(f_queries, f_positives), args.features_wise_w)
-                    del queries, positives, queries_fw, positives_fw, w_queries, w_positives, f_queries, f_positives
-                else: features_wise_loss = 0
-                
-                if i == 0: epoch_losses = np.concatenate((epoch_losses, np.array([[ss_loss, consistency_loss, features_wise_loss]])))
-                optim.step()
+            
+            optim.zero_grad()
+            
+            # ss_loss
+            if args.ss_w != 0:
+                pred_warped_intersection_points_1 = model("regression", similarity_matrix_1to2)
+                pred_warped_intersection_points_2 = model("regression", similarity_matrix_2to1)
+                ss_loss = (mse(pred_warped_intersection_points_1[:,:4], warped_intersection_points_1) +
+                           mse(pred_warped_intersection_points_1[:,4:], warped_intersection_points_2) +
+                           mse(pred_warped_intersection_points_2[:,:4], warped_intersection_points_2) +
+                           mse(pred_warped_intersection_points_2[:,4:], warped_intersection_points_1))
+                ss_loss = compute_loss(ss_loss, args.ss_w)
+                del pred_warped_intersection_points_1, pred_warped_intersection_points_2
+            else: ss_loss = 0
+            
+            # consistency_loss
+            if args.consistency_w != 0:
+                pred_intersection_points_q2p = model("regression", similarity_matrix_q2p)
+                pred_intersection_points_p2q = model("regression", similarity_matrix_p2q)
+                fl_pred_intersection_points_q2p = model("regression", fl_similarity_matrix_q2p)
+                fl_pred_intersection_points_p2q = model("regression", fl_similarity_matrix_p2q)
+                four_predicted_points = [torch.cat((pred_intersection_points_q2p[:,4:], pred_intersection_points_q2p[:,:4]), 1),
+                         pred_intersection_points_p2q,
+                         hor_flip(torch.cat((fl_pred_intersection_points_q2p[:,4:], fl_pred_intersection_points_q2p[:,:4]), 1)),
+                         hor_flip(fl_pred_intersection_points_p2q)]
+                four_predicted_points_centroids = torch.cat([p[None] for p in four_predicted_points]).mean(0).detach()
+                consistency_loss = sum([mse(pred, four_predicted_points_centroids) for pred in four_predicted_points])
+                consistency_loss = compute_loss(consistency_loss, args.consistency_w)
+                del pred_intersection_points_q2p, pred_intersection_points_p2q, \
+                    fl_pred_intersection_points_q2p, fl_pred_intersection_points_p2q, \
+                    four_predicted_points
+            else: consistency_loss = 0
+            
+            # features_wise_loss
+            if args.features_wise_w != 0:
+                queries_fw = queries[:args.batch_size_features_wise]
+                positives_fw = positives[:args.batch_size_features_wise]
+                # Add random weights to avoid numerical instability
+                random_weights = (torch.rand(args.batch_size_features_wise, 4)**0.1).cuda()
+                w_queries, w_positives, _, _ = dataset_warp.compute_warping(model, queries_fw, positives_fw, weights=random_weights)
+                f_queries = model("features_extractor", [w_queries, "local"])
+                f_positives = model("features_extractor", [w_positives, "local"])
+                features_wise_loss = compute_loss(mse(f_queries, f_positives), args.features_wise_w)
+                del queries, positives, queries_fw, positives_fw, w_queries, w_positives, f_queries, f_positives
+            else: features_wise_loss = 0
+            
+            epoch_losses = np.concatenate((epoch_losses, np.array([[ss_loss, consistency_loss, features_wise_loss]])))
+            optim.step()
         
         epoch_losses_means = epoch_losses.mean()
         def format_(array): return " - ".join([f"{e:.4f}" for e in array])
@@ -215,6 +246,7 @@ if __name__ == "__main__":
         logging.debug(f"Current total loss = {epoch_losses_means:.4f}")
     ############### TRAIN ###############
     
+    ############### TEST ###############
     logging.info(f"The training is over in {str(datetime.now() - start_time)[:-7]}, now it's test time")
     
     homography_regression = homography_regression.eval()
@@ -225,4 +257,5 @@ if __name__ == "__main__":
     _, reranked_test_recalls_pretty_str = test.test(model, test_baseline_predictions, geoloc_test_dataset,
                                                     num_reranked_predictions=args.num_reranked_preds, recall_values=[1,5,10,20])
     logging.info(f"test after warping - {reranked_test_recalls_pretty_str}")
+    ############### TEST ###############
 

@@ -56,10 +56,7 @@ class FeaturesExtractor(torch.nn.Module):
     """
     def __init__(self, arch, pooling):
         super().__init__()
-        if arch  == "r18":
-            model = torchvision.models.resnet50(pretrained=True)
-            layers = list(model.children())[:-3]
-        if arch  == "r50":
+        if arch  == "resnet50":
             model = torchvision.models.resnet50(pretrained=True)
             layers = list(model.children())[:-3]
         elif arch == "vgg16":

@@ -30,24 +30,35 @@ class InfiniteDataLoader(torch.utils.data.DataLoader):
         return batch
 
 
-def setup_logging(output_folder, exist_ok=False, console="debug",
-                  info_filename="info.log", debug_filename="debug.log"):
-    """Set up logging files and console output.
-    Creates one file for INFO logs and one for DEBUG logs.
-    Args:
-        output_folder (str): creates the folder where to save the files.
-        exist_ok (boolean): if False throw a FileExistsError if output_folder already exists
-        debug (str):
-            if == "debug" prints on console debug messages and higher
-            if == "info"  prints on console info messages and higher
-            if == None does not use console (useful when a logger has already been set)
-        info_filename (str): the name of the info file. if None, don't create info file
-        debug_filename (str): the name of the debug file. if None, don't create debug file
+def setup_logging(output_folder, console="info", info_filename="info.log",
+                  debug_filename="debug.log"):
+    """After calling this function, you can easily log messages from anywhere
+    in your code without passing any object to your functions.
+    Just calling "logging.info(msg)" prints "msg" in stdout and saves it in
+    the "info.log" and "debug.log" files.
+    Similarly, "logging.debug(msg)" saves "msg" in the "debug.log" file.
+    Exceptions raised from any other function are also saved in the files
+    info.log and debug.log.
+    
+    Parameters
+    ----------
+    output_folder : str, the folder where to save the logging files.
+    console : str, can be "debug" or "info".
+        If console == "debug", print in stdout any time logging.debug(msg)
+        (or logging.info(msg)) is called.
+        If console == "info", print in std out only when logging.info(msg) is called.
+    info_filename : str, name of the file with the logs printed when calling
+        logging.info(msg).
+    debug_filename : str, name of the file with the logs printed when calling 
+        logging.debug(msg) or logging.info(msg).
+    
     """
-    if not exist_ok and os.path.exists(output_folder):
+    if os.path.exists(output_folder):
         raise FileExistsError(f"{output_folder} already exists!")
-    os.makedirs(output_folder, exist_ok=True)
-    # logging.Logger.manager.loggerDict.keys() to check which loggers are in use
+    os.makedirs(output_folder)
+    
+    # Use logging.Logger.manager.loggerDict.keys() to check which loggers are in use
+    # Disable some useless warnings.
     logging.getLogger('matplotlib.font_manager').disabled = True
     logging.getLogger('shapely').disabled = True
     logging.getLogger('shapely.geometry').disabled = True
@@ -75,7 +86,9 @@ def setup_logging(output_folder, exist_ok=False, console="debug",
         console_handler.setFormatter(base_formatter)
         logger.addHandler(console_handler)
     
+    # Save exceptions in log files
     def exception_handler(type_, value, tb):
         logger.info("\n" + "".join(traceback.format_exception(type, value, tb)))
+    
     sys.excepthook = exception_handler
 
