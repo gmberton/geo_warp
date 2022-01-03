@@ -10,7 +10,7 @@ G Berton, C. Masone, V. Paolicelli and B. Caputo, [Viewpoint Invariant Dense Mat
 ##  Setup
 
 First download the baseline models which have been trained following the training procedure in the [NetVLAD paper](https://arxiv.org/abs/1511.07247).
-We provide a script to download the six models used, which are a combination of 3 backbone encoders (AlexNet, VGG-16 and ResNet-50) with 2 pooling/aggregation layers (GeM and NetVLAD). The models are automatically saved in trained_networks/pretrained_baselines.
+We provide a script to download the six models used, which are a combination of 3 backbone encoders (AlexNet, VGG-16 and ResNet-50) with 2 pooling/aggregation layers (GeM and NetVLAD). The models are automatically saved in data/pretrained_baselines.
 
 ```bash
 
@@ -45,7 +45,7 @@ You can train the model using the `train.py`, here's an example with the lightes
 
 ```bash
 
-python train.py --arch alexnet --pooling gem --resume_fe trained_networks/pretrained_baselines/alexnet_gem.pth
+python train.py --arch alexnet --pooling gem --resume_fe data/pretrained_baselines/alexnet_gem.pth
 
 ```
 
@@ -62,11 +62,11 @@ python download_trained_hom_reg.py
 
 ```
 
-which will automatically download the models and save them under trained_networks/trained_homography_regressions. Then to obtain the results you can execute
+which will automatically download the models and save them under data/trained_homography_regressions. Then to obtain the results you can execute
 
 ```bash
 
-python eval.py --arch alexnet --pooling gem --resume_fe trained_networks/pretrained_baselines/alexnet_gem.pth --resume_hr trained_networks/trained_homography_regressions/alexnet_gem.pth
+python eval.py --arch alexnet --pooling gem --resume_fe data/pretrained_baselines/alexnet_gem.pth --resume_hr data/trained_homography_regressions/alexnet_gem.pth
 
 ```
 

@@ -125,7 +125,7 @@ def get_random_homographic_pair(source_img, k, is_debugging=False):
     warped_intersection_points = torch.cat((torch.stack(xs).T.reshape(2,4,1), torch.stack(ys).T.reshape(2,4,1)), 2)
     if is_debugging:
         warped_images_intersection, inverse_theta = warp_images(warped_images, warped_intersection_points)
-        return (source_img[0], *warped_images, *warped_images_intersection), (theta, inverse_theta), \
+        return (source_img, *warped_images, *warped_images_intersection), (theta, inverse_theta), \
                (*points_trapezoids, *intersection_points, *warped_intersection_points)
     else:
         return warped_images[0], warped_images[1], warped_intersection_points[0], warped_intersection_points[1]
