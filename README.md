@@ -1,9 +1,9 @@
 
-#  Viewpoint Invariant Dense Matching for Visual Geolocalization: PyTorch implementation
+#  Viewpoint Invariant Dense Matching for Visual Geolocalization: Official PyTorch implementation
 
 <img src="https://github.com/gmberton/geo_warp/blob/main/images_paper/teaser.jpg" width="500">
 
-This is the implementation of the ICCV21 paper:
+This is the official implementation of the ICCV 2021 paper:
 
 G Berton, C. Masone, V. Paolicelli and B. Caputo, [Viewpoint Invariant Dense Matching for Visual Geolocalization](https://arxiv.org/pdf/2109.09827.pdf)
 
@@ -72,6 +72,30 @@ python eval.py --arch alexnet --pooling gem --resume_fe data/pretrained_baseline
 
 This will give you the exact same results as in Table 1 of the paper.
 For a full set of options, and explanation of the parameters, run `python eval.py -h`.
+
+## Visualization of self-supervised data
+
+You can generate and visualize self-supervised data given a single image, simply running
+
+```bash
+
+python visualize_ss_data.py --image_path data/example.jpg --k 0.8
+
+```
+
+The script generates four images (notation is consistent with the paper):
+1. ./data/ss_img_source.jpg: the source image I, with the visualization of the two quadrilaterals t<sub>x</sub> (orange) and t<sub>y</sub> (purple) and their intersection t<sub>z</sub> (green) as defined in the paper;
+2. ./data/ss_proj_a.jpg: the first projection I<sub>a</sub>, with the projection t<sub>a</sub> of the intersection (green);
+3. ./data/ss_proj_b.jpg: the second projection I<sub>b</sub>, with the projection t<sub>b</sub> of the intersection (green);
+4. ./data/ss_proj_intersection.jpg: the projection of the intersection.
+
+You can change the value of k to see how this influences the training data.
+
+Example of randomly generated images:
+
+Source image | Projection A | Projection B | Projected intersection
+:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
+![](https://github.com/gmberton/geo_warp/blob/main/data/example_ss_img_source.jpg) | ![](https://github.com/gmberton/geo_warp/blob/main/data/example_ss_proj_a.jpg) | ![](https://github.com/gmberton/geo_warp/blob/main/data/example_ss_proj_b.jpg) | ![](https://github.com/gmberton/geo_warp/blob/main/data/example_ss_proj_inters.jpg)
 
 ###  BibTeX
 
