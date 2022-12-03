@@ -9,7 +9,7 @@ import datasets_util
 
 
 def test(model, predictions, test_dataset, num_reranked_predictions=5,
-         recall_values=[1,5,10,20], test_batch_size=8):
+         recall_values=[1, 5, 10, 20], test_batch_size=8):
     """Compute the test by warping the query-prediction pairs.
     
     Parameters
@@ -60,4 +60,3 @@ def test(model, predictions, test_dataset, num_reranked_predictions=5,
     ground_truths = test_dataset.get_positives()
     recalls, recalls_pretty_str = util.compute_recalls(reranked_predictions, ground_truths, test_dataset, recall_values)
     return recalls, recalls_pretty_str
-

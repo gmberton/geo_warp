@@ -15,4 +15,3 @@ def open_image_and_apply_transform(image_path):
     pil_image = Image.open(image_path)
     tensor_image = transform(pil_image)
     return tensor_image
-

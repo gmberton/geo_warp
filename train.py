@@ -26,9 +26,9 @@ def hor_flip(points):
     points : torch.Tensor of shape [B, 8, 2]
     """
     new_points = torch.zeros_like(points)
-    new_points[:,0::2,:] = points[:,1::2,:]
-    new_points[:,1::2,:] = points[:,0::2,:]
-    new_points[:,:,0] *= -1
+    new_points[:, 0::2, :] = points[:, 1::2, :]
+    new_points[:, 1::2, :] = points[:, 0::2, :]
+    new_points[:, :, 0] *= -1
     return new_points
 
 
@@ -90,9 +90,9 @@ if __name__ == "__main__":
     parser.add_argument("--pooling", type=str, default="netvlad",
                         choices=["netvlad", "gem"],
                         help="pooling layer used in the baselines")
-    parser.add_argument("--kernel_sizes", nargs='+', default=[7,5,5,5,5,5],
+    parser.add_argument("--kernel_sizes", nargs='+', default=[7, 5, 5, 5, 5, 5],
                         help="size of kernels in conv layers of Homography Regression")
-    parser.add_argument("--channels", nargs='+', default=[225,128,128,64,64,64,64],
+    parser.add_argument("--channels", nargs='+', default=[225, 128, 128, 64, 64, 64, 64],
                         help="num channels in conv layers of Homography Regression")
     
     # Others
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     features_extractor = network.FeaturesExtractor(args.arch, args.pooling)
     global_features_dim = commons.get_output_dim(features_extractor, args.pooling)
     
-    if args.resume_fe != None:
+    if args.resume_fe is not None:
         state_dict = torch.load(args.resume_fe)
         features_extractor.load_state_dict(state_dict)
         del state_dict
@@ -142,21 +142,21 @@ if __name__ == "__main__":
     
     ############### DATASETS & DATALOADERS ###############
     geoloc_train_dataset = dataset_geoloc.GeolocDataset(args.datasets_folder, args.dataset_name, split="train",
-                                                    positive_dist_threshold=args.positive_dist_threshold)
+                                                        positive_dist_threshold=args.positive_dist_threshold)
     logging.info(f"Geoloc train set: {geoloc_train_dataset}")
-    geoloc_test_dataset  = dataset_geoloc.GeolocDataset(args.datasets_folder, args.dataset_name, split="test",
-                                                    positive_dist_threshold=args.positive_dist_threshold)
+    geoloc_test_dataset = dataset_geoloc.GeolocDataset(args.datasets_folder, args.dataset_name, split="test",
+                                                       positive_dist_threshold=args.positive_dist_threshold)
     logging.info(f"Geoloc test set: {geoloc_test_dataset}")
     
     ss_dataset = dataset_warp.HomographyDataset(root_path=f"{args.datasets_folder}/{args.dataset_name}/images/train", k=args.k)
-    ss_dataloader = commons.InfiniteDataLoader(ss_dataset, shuffle=True, batch_size=args.batch_size_ss, 
+    ss_dataloader = commons.InfiniteDataLoader(ss_dataset, shuffle=True, batch_size=args.batch_size_ss,
                                                num_workers=args.ss_num_workers, pin_memory=True, drop_last=True)
     ss_data_iter = iter(ss_dataloader)
     
     if args.consistency_w != 0 or args.features_wise_w != 0:
         dataset_qp = dataset_qp.DatasetQP(model, global_features_dim, geoloc_train_dataset, qp_threshold=args.qp_threshold)
         dataloader_qp = commons.InfiniteDataLoader(dataset_qp, shuffle=True,
-                                                   batch_size=max(args.batch_size_consistency, args.batch_size_features_wise), 
+                                                   batch_size=max(args.batch_size_consistency, args.batch_size_features_wise),
                                                    num_workers=args.qp_num_workers, pin_memory=True, drop_last=True)
         data_iter_qp = iter(dataloader_qp)
     ############### DATASETS & DATALOADERS ###############
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     for epoch in range(args.n_epochs):
         
         homography_regression = homography_regression.train()
-        epoch_losses = np.zeros((0,3), dtype=np.float32)
+        epoch_losses = np.zeros((0, 3), dtype=np.float32)
         
         for iteration in tqdm(range(args.iterations_per_epoch), desc=f"Train epoch {epoch}", ncols=100):
             warped_img_1, warped_img_2, warped_intersection_points_1, warped_intersection_points_2 = to_cuda(next(ss_data_iter))
@@ -195,13 +195,14 @@ if __name__ == "__main__":
             if args.ss_w != 0:
                 pred_warped_intersection_points_1 = model("regression", similarity_matrix_1to2)
                 pred_warped_intersection_points_2 = model("regression", similarity_matrix_2to1)
-                ss_loss = (mse(pred_warped_intersection_points_1[:,:4], warped_intersection_points_1) +
-                           mse(pred_warped_intersection_points_1[:,4:], warped_intersection_points_2) +
-                           mse(pred_warped_intersection_points_2[:,:4], warped_intersection_points_2) +
-                           mse(pred_warped_intersection_points_2[:,4:], warped_intersection_points_1))
+                ss_loss = (mse(pred_warped_intersection_points_1[:, :4], warped_intersection_points_1) +
+                           mse(pred_warped_intersection_points_1[:, 4:], warped_intersection_points_2) +
+                           mse(pred_warped_intersection_points_2[:, :4], warped_intersection_points_2) +
+                           mse(pred_warped_intersection_points_2[:, 4:], warped_intersection_points_1))
                 ss_loss = compute_loss(ss_loss, args.ss_w)
                 del pred_warped_intersection_points_1, pred_warped_intersection_points_2
-            else: ss_loss = 0
+            else:
+                ss_loss = 0
             
             # consistency_loss
             if args.consistency_w != 0:
@@ -209,17 +210,20 @@ if __name__ == "__main__":
                 pred_intersection_points_p2q = model("regression", similarity_matrix_p2q)
                 fl_pred_intersection_points_q2p = model("regression", fl_similarity_matrix_q2p)
                 fl_pred_intersection_points_p2q = model("regression", fl_similarity_matrix_p2q)
-                four_predicted_points = [torch.cat((pred_intersection_points_q2p[:,4:], pred_intersection_points_q2p[:,:4]), 1),
-                         pred_intersection_points_p2q,
-                         hor_flip(torch.cat((fl_pred_intersection_points_q2p[:,4:], fl_pred_intersection_points_q2p[:,:4]), 1)),
-                         hor_flip(fl_pred_intersection_points_p2q)]
+                four_predicted_points = [
+                    torch.cat((pred_intersection_points_q2p[:, 4:], pred_intersection_points_q2p[:, :4]), 1),
+                    pred_intersection_points_p2q,
+                    hor_flip(torch.cat((fl_pred_intersection_points_q2p[:, 4:], fl_pred_intersection_points_q2p[:, :4]), 1)),
+                    hor_flip(fl_pred_intersection_points_p2q)
+                ]
                 four_predicted_points_centroids = torch.cat([p[None] for p in four_predicted_points]).mean(0).detach()
                 consistency_loss = sum([mse(pred, four_predicted_points_centroids) for pred in four_predicted_points])
                 consistency_loss = compute_loss(consistency_loss, args.consistency_w)
-                del pred_intersection_points_q2p, pred_intersection_points_p2q, \
-                    fl_pred_intersection_points_q2p, fl_pred_intersection_points_p2q, \
-                    four_predicted_points
-            else: consistency_loss = 0
+                del pred_intersection_points_q2p, pred_intersection_points_p2q
+                del fl_pred_intersection_points_q2p, fl_pred_intersection_points_p2q
+                del four_predicted_points
+            else:
+                consistency_loss = 0
             
             # features_wise_loss
             if args.features_wise_w != 0:
@@ -232,7 +236,8 @@ if __name__ == "__main__":
                 f_positives = model("features_extractor", [w_positives, "local"])
                 features_wise_loss = compute_loss(mse(f_queries, f_positives), args.features_wise_w)
                 del queries, positives, queries_fw, positives_fw, w_queries, w_positives, f_queries, f_positives
-            else: features_wise_loss = 0
+            else:
+                features_wise_loss = 0
             
             epoch_losses = np.concatenate((epoch_losses, np.array([[ss_loss, consistency_loss, features_wise_loss]])))
             optim.step()
@@ -252,10 +257,10 @@ if __name__ == "__main__":
     homography_regression = homography_regression.eval()
     
     test_baseline_recalls, test_baseline_recalls_pretty_str, test_baseline_predictions, _, _ = \
-            util.compute_features(geoloc_test_dataset, model, global_features_dim)
+        util.compute_features(geoloc_test_dataset, model, global_features_dim)
     logging.info(f"baseline test: {test_baseline_recalls_pretty_str}")
     _, reranked_test_recalls_pretty_str = test.test(model, test_baseline_predictions, geoloc_test_dataset,
-                                                    num_reranked_predictions=args.num_reranked_preds, recall_values=[1,5,10,20])
+                                                    num_reranked_predictions=args.num_reranked_preds,
+                                                    recall_values=[1, 5, 10, 20])
     logging.info(f"test after warping - {reranked_test_recalls_pretty_str}")
     ############### TEST ###############
-

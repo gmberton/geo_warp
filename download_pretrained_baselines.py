@@ -1,4 +1,3 @@
-
 """
 This script downloads the pretrained models, and saves them in data/pretrained_baselines.
 These models have been trained following the training procedure as described
@@ -14,4 +13,3 @@ gdd.download_file_from_google_drive(file_id="1WjfQFS_13uvg_eyefNJWVIKbvy9tSPR-",
 os.remove("tmp")
 os.makedirs("data", exist_ok=True)
 shutil.move("pretrained_baselines", "data/pretrained_baselines")
-

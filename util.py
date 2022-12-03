@@ -90,4 +90,3 @@ def compute_recalls(predictions, ground_truths, test_dataset, recall_values=[1, 
     recalls = recalls / test_dataset.queries_num * 100
     recalls_pretty_str = ", ".join([f"R@{val}: {rec:.1f}" for val, rec in zip(recall_values, recalls)])
     return recalls, recalls_pretty_str
-

@@ -25,6 +25,7 @@ class GeM(nn.Module):
         super().__init__()
         self.p = Parameter(torch.ones(1)*p)
         self.eps = eps
+    
     def forward(self, x):
         B, C, H, W = x.shape
         x = gem(x, p=self.p, eps=self.eps)
@@ -39,13 +40,14 @@ def gem(x, p=3, eps=1e-6):
 class L2Norm(torch.nn.Module):
     def __init__(self):
         super().__init__()
+    
     def forward(self, x):
         return feature_L2_norm(x)
 
 
 def feature_L2_norm(feature):
     epsilon = 1e-6
-    norm = torch.pow(torch.sum(torch.pow(feature,2),1)+epsilon,0.5).unsqueeze(1).expand_as(feature)
+    norm = torch.pow(torch.sum(torch.pow(feature, 2), 1)+epsilon, 0.5).unsqueeze(1).expand_as(feature)
     return torch.div(feature.contiguous(), norm)
 
 
@@ -56,7 +58,7 @@ class FeaturesExtractor(torch.nn.Module):
     """
     def __init__(self, arch, pooling):
         super().__init__()
-        if arch  == "resnet50":
+        if arch == "resnet50":
             model = torchvision.models.resnet50(pretrained=True)
             layers = list(model.children())[:-3]
         elif arch == "vgg16":
@@ -97,7 +99,7 @@ def compute_similarity(features_a, features_b):
 
 
 class HomographyRegression(nn.Module):
-    def __init__(self, output_dim=16, kernel_sizes=[7,5], channels=[225,128,64], padding=0):
+    def __init__(self, output_dim=16, kernel_sizes=[7, 5], channels=[225, 128, 64], padding=0):
         super().__init__()
         assert len(kernel_sizes) == len(channels) - 1, \
             f"In HomographyRegression the number of kernel_sizes must be less than channels, but you said {kernel_sizes} and {channels}"
@@ -116,6 +118,7 @@ class HomographyRegression(nn.Module):
         init_points = torch.cat((init_points, init_points))
         self.linear.bias.data = init_points
         self.linear.weight.data = torch.zeros_like((self.linear.weight.data))
+    
     def forward(self, x):
         B = x.shape[0]
         x = self.conv(x)
@@ -126,7 +129,7 @@ class HomographyRegression(nn.Module):
 
 class Network(nn.Module):
     """
-    Overview of the network: 
+    Overview of the network:
     name                 input                                       output
     FeaturesExtractor:   (2B x 3 x H x W)                            (2B x 256 x 15 x 15)
     compute_similarity:  (B x 256 x 15 x 15), (B x 256 x 15 x 15)    (B x 225 x 15 x 15)
@@ -137,6 +140,7 @@ class Network(nn.Module):
         super().__init__()
         self.features_extractor = features_extractor
         self.homography_regression = homography_regression
+    
     def forward(self, operation, args):
         """Compute a forward pass, which can be of different types.
         This "ugly" step of passing the operation as a string has been adapted
@@ -190,17 +194,19 @@ class NetVLAD(nn.Module):
         self.normalize_input = normalize_input
         self.conv = nn.Conv2d(dim, num_clusters, kernel_size=(1, 1), bias=False)
         self.centroids = nn.Parameter(torch.rand(num_clusters, dim))
-    def __forward_vlad__(self, x_flatten,soft_assign, N, D):
+    
+    def __forward_vlad__(self, x_flatten, soft_assign, N, D):
         vlad = torch.zeros([N, self.num_clusters, D], dtype=x_flatten.dtype, device=x_flatten.device)
         for D in range(self.num_clusters):  # Slower than non-looped, but lower memory usage
             residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - \
                     self.centroids[D:D+1, :].expand(x_flatten.size(-1), -1, -1).permute(1, 2, 0).unsqueeze(0)
-            residual = residual * soft_assign[:,D:D+1,:].unsqueeze(2)
-            vlad[:,D:D+1,:] = residual.sum(dim=-1)
+            residual = residual * soft_assign[:, D:D+1, :].unsqueeze(2)
+            vlad[:, D:D+1, :] = residual.sum(dim=-1)
         vlad = F.normalize(vlad, p=2, dim=2)
         vlad = vlad.view(N, -1)
         vlad = F.normalize(vlad, p=2, dim=1)
         return vlad
+    
     def forward(self, x):
         N, D, H, W = x.shape[:]
         if self.normalize_input:
@@ -210,4 +216,3 @@ class NetVLAD(nn.Module):
         soft_assign = F.softmax(soft_assign, dim=1)
         vlad = self.__forward_vlad__(x_flatten, soft_assign, N, D)
         return vlad
-

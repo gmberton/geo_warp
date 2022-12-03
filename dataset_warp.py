@@ -19,15 +19,18 @@ def get_random_trapezoid(k=1):
         The higher k, the more "random" the trapezoid.
     """
     assert 0 <= k <= 1
+    
     def rand(k):
         return 1 - (random.random() * k)
-    left = -rand(k); right = rand(k)
+    
+    left = -rand(k)
+    right = rand(k)
     return torch.tensor([(left, -rand(k)), (right, -rand(k)), (right, rand(k)), (left, rand(k))])
 
 
 def compute_warping(model, tensor_img_1, tensor_img_2, weights=None):
     """Computes the pairwise warping of two (batches of) images, using a given model.
-    Given that the operations in the model is not commutative (i.e. the order of 
+    Given that the operations in the model is not commutative (i.e. the order of
     the tensor matters), this function computes the mean passing the tensor images
     in both orders.
     
@@ -51,8 +54,8 @@ def compute_warping(model, tensor_img_1, tensor_img_2, weights=None):
     # Get both predictions
     pred_points_1to2, pred_points_2to1 = model("similarity_and_regression", [tensor_img_1, tensor_img_2])
     # Average them
-    mean_pred_points_1 = (pred_points_1to2[:,:4] + pred_points_2to1[:,4:]) / 2
-    mean_pred_points_2 = (pred_points_1to2[:,4:] + pred_points_2to1[:,:4]) / 2
+    mean_pred_points_1 = (pred_points_1to2[:, :4] + pred_points_2to1[:, 4:]) / 2
+    mean_pred_points_2 = (pred_points_1to2[:, 4:] + pred_points_2to1[:, :4]) / 2
     # Apply the homography
     warped_tensor_img_1, _ = warp_images(tensor_img_1, mean_pred_points_1, weights)
     warped_tensor_img_2, _ = warp_images(tensor_img_2, mean_pred_points_2, weights)
@@ -107,8 +110,8 @@ def get_random_homographic_pair(source_img, k, is_debugging=False):
     intersection = trap_2.intersection(trap_1)
     # Some operations to get the intersection points as a torch.Tensor of shape [4, 2]
     list_x, list_y = intersection.exterior.coords.xy
-    a3, d3 = sorted(list(set([(x,y) for x,y in zip(list_x, list_y) if x == min(list_x)])))
-    b3, c3 = sorted(list(set([(x,y) for x,y in zip(list_x, list_y) if x == max(list_x)])))
+    a3, d3 = sorted(list(set([(x, y) for x, y in zip(list_x, list_y) if x == min(list_x)])))
+    b3, c3 = sorted(list(set([(x, y) for x, y in zip(list_x, list_y) if x == max(list_x)])))
     intersection_points = torch.tensor([a3, b3, c3, d3]).type(torch.float)
     intersection_points = torch.repeat_interleave(intersection_points.unsqueeze(0), 2, 0)
     
@@ -117,12 +120,12 @@ def get_random_homographic_pair(source_img, k, is_debugging=False):
     warped_images, theta = warp_images(image_repeated_twice, points_trapezoids)
     theta = torch.inverse(theta)
     # Compute positions of intersection_points projected on the warped images
-    xs = [(theta[:,0,0]*intersection_points[:,p,0] + theta[:,0,1]*intersection_points[:,p,1] + theta[:,0,2])/
-          (theta[:,2,0]*intersection_points[:,p,0] + theta[:,2,1]*intersection_points[:,p,1] + theta[:,2,2]) for p in range(4)]
-    ys = [(theta[:,1,0]*intersection_points[:,p,0] + theta[:,1,1]*intersection_points[:,p,1] + theta[:,1,2])/
-          (theta[:,2,0]*intersection_points[:,p,0] + theta[:,2,1]*intersection_points[:,p,1] + theta[:,2,2]) for p in range(4)]
+    xs = [(theta[:, 0, 0]*intersection_points[:, p, 0] + theta[:, 0, 1]*intersection_points[:, p, 1] + theta[:, 0, 2]) /
+          (theta[:, 2, 0]*intersection_points[:, p, 0] + theta[:, 2, 1]*intersection_points[:, p, 1] + theta[:, 2, 2]) for p in range(4)]
+    ys = [(theta[:, 1, 0]*intersection_points[:, p, 0] + theta[:, 1, 1]*intersection_points[:, p, 1] + theta[:, 1, 2]) /
+          (theta[:, 2, 0]*intersection_points[:, p, 0] + theta[:, 2, 1]*intersection_points[:, p, 1] + theta[:, 2, 2]) for p in range(4)]
     # Refactor the projected intersection points as a torch.Tensor with shape [2, 4, 2]
-    warped_intersection_points = torch.cat((torch.stack(xs).T.reshape(2,4,1), torch.stack(ys).T.reshape(2,4,1)), 2)
+    warped_intersection_points = torch.cat((torch.stack(xs).T.reshape(2, 4, 1), torch.stack(ys).T.reshape(2, 4, 1)), 2)
     if is_debugging:
         warped_images_intersection, inverse_theta = warp_images(warped_images, warped_intersection_points)
         return (source_img, *warped_images, *warped_images_intersection), (theta, inverse_theta), \
@@ -137,10 +140,11 @@ class HomographyDataset(torch.utils.data.Dataset):
         self.images_paths = sorted(glob(f"{root_path}/**/*.jpg", recursive=True))
         self.k = k
         self.is_debugging = is_debugging
+    
     def __getitem__(self, index):
         image_path = self.images_paths[index]
         source_img = datasets_util.open_image_and_apply_transform(image_path)
         return get_random_homographic_pair(source_img, self.k, is_debugging=self.is_debugging)
+    
     def __len__(self):
         return len(self.images_paths)
-

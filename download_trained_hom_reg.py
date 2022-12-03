@@ -1,4 +1,3 @@
-
 """
 This script downloads the networks trained for the paper.
 Note that the only part of the architecture that actually gets trained is the
@@ -14,4 +13,3 @@ gdd.download_file_from_google_drive(file_id="14rEDzPYbLThfIHzT5wlP5le8ILQObqmf",
 os.remove("tmp")
 os.makedirs("data", exist_ok=True)
 shutil.move("trained_homography_regressions", "data/trained_homography_regressions")
-
