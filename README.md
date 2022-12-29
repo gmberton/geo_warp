@@ -1,11 +1,13 @@
 
 #  Viewpoint Invariant Dense Matching for Visual Geolocalization: Official PyTorch implementation
 
-<img src="https://github.com/gmberton/geo_warp/blob/main/images_paper/teaser.jpg" width="500">
-
 This is the official implementation of the ICCV 2021 paper:
 
-G Berton, C. Masone, V. Paolicelli and B. Caputo, [Viewpoint Invariant Dense Matching for Visual Geolocalization](https://arxiv.org/pdf/2109.09827.pdf)
+G Berton, C. Masone, V. Paolicelli and B. Caputo, Viewpoint Invariant Dense Matching for Visual Geolocalization
+
+[[ICCV OpenAccess](https://openaccess.thecvf.com/content/ICCV2021/html/Berton_Viewpoint_Invariant_Dense_Matching_for_Visual_Geolocalization_ICCV_2021_paper.html)] [[ArXiv](https://arxiv.org/pdf/2109.09827.pdf)] [[Video](https://www.youtube.com/watch?v=qh82bYuuE4o)] [[BibTex](https://github.com/gmberton/geo_warp#bibtex)]
+
+<img src="https://github.com/gmberton/geo_warp/blob/main/images_paper/teaser.jpg" width="400">
 
 ##  Setup
 
