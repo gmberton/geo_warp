@@ -5,11 +5,14 @@ homography regression.
 """
 
 import os
+import gdown
 import shutil
-from google_drive_downloader import GoogleDriveDownloader as gdd
 
-gdd.download_file_from_google_drive(file_id="14rEDzPYbLThfIHzT5wlP5le8ILQObqmf",
-                                    dest_path="./tmp", unzip=True)
-os.remove("tmp")
+url = "https://drive.google.com/uc?id=14rEDzPYbLThfIHzT5wlP5le8ILQObqmf"
+tmp_archive_name = "tmp.zip"
+gdown.download(url, tmp_archive_name, quiet=False)
+
+shutil.unpack_archive(tmp_archive_name)
+os.remove(tmp_archive_name)
 os.makedirs("data", exist_ok=True)
 shutil.move("trained_homography_regressions", "data/trained_homography_regressions")

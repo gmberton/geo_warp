@@ -1,4 +1,5 @@
 faiss_cpu
+gdown
 kornia
 numpy
 Pillow

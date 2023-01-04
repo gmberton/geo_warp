@@ -5,11 +5,15 @@ in the NetVLAD paper https://arxiv.org/abs/1511.07247
 """
 
 import os
+import gdown
 import shutil
-from google_drive_downloader import GoogleDriveDownloader as gdd
 
-gdd.download_file_from_google_drive(file_id="1WjfQFS_13uvg_eyefNJWVIKbvy9tSPR-",
-                                    dest_path="./tmp", unzip=True)
-os.remove("tmp")
+url = "https://drive.google.com/uc?id=1WjfQFS_13uvg_eyefNJWVIKbvy9tSPR-"
+tmp_archive_name = "tmp.zip"
+gdown.download(url, tmp_archive_name, quiet=False)
+
+shutil.unpack_archive(tmp_archive_name)
+os.remove(tmp_archive_name)
 os.makedirs("data", exist_ok=True)
 shutil.move("pretrained_baselines", "data/pretrained_baselines")
+
